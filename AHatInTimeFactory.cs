@@ -7,11 +7,11 @@ using System.Text;
 
 namespace LiveSplit.AHatInTime
 {
-    public class Factory : IComponentFactory
+    public class AHatInTimeFactory : IComponentFactory
     {
         public string ComponentName
         {
-            get { return "A Hat In Time - Time Without Loads"; }
+            get { return "A Hat In Time Auto Splitter"; }
         }
 
         public IComponent Create(LiveSplitState state)
@@ -21,7 +21,7 @@ namespace LiveSplit.AHatInTime
 
         public string UpdateName
         {
-            get { return ""; }
+            get { return ComponentName; }
         }
 
         public string UpdateURL
@@ -46,7 +46,7 @@ namespace LiveSplit.AHatInTime
 
         public string Description
         {
-            get { return "Removes loading times for A Hat in Time"; }
+            get { return "Removes loading times and auto splits for A Hat in Time"; }
         }
     }
 }
