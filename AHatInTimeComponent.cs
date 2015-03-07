@@ -7,6 +7,7 @@ using LiveSplit.Web.Share;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -16,22 +17,18 @@ using System.Windows.Forms;
 
 namespace LiveSplit.AHatInTime
 {
-    class AHatInTimeComponent : IComponent
+    class AHatInTimeComponent : LogicComponent
     {
         public AHatInTimeSettings Settings { get; set; }
 
-        protected TimerPhase Phase { get; set; }
-        public TimeSpan? RemovedLoadTime { get; set; }
         public int LastLogIndex { get; set; }
 
-        public string ComponentName
+        LiveSplitState state;
+
+        public override string ComponentName
         {
             get { return "A Hat In Time - Time Without Loads"; }
         }
-
-        public IDictionary<string, Action> ContextMenuControls { get; protected set; }
-
-        protected InfoTimeComponent InternalComponent { get; set; }
 
         public String LogPath
         {
@@ -45,15 +42,18 @@ namespace LiveSplit.AHatInTime
 
         protected System.Timers.Timer RefreshTimer { get; set; }
 
-        public AHatInTimeComponent()
+        public AHatInTimeComponent(LiveSplitState state)
         {
             Settings = new AHatInTimeSettings();
-            InternalComponent = new InfoTimeComponent(null, null, new RegularTimeFormatter(TimeAccuracy.Hundredths));
 
-            ContextMenuControls = new Dictionary<String, Action>();
-            RemovedLoadTime = TimeSpan.Zero;
+            LastLogIndex = 0; //TODO Should reset when the game restarts
             RefreshTimer = new System.Timers.Timer(5000);
             RefreshTimer.Elapsed += RefreshTimer_Elapsed;
+
+            this.state = state;
+
+            state.OnStart += (s, e) => OnStart();
+            state.OnReset += (s, e) => OnReset();
         }
 
         void RefreshTimer_Elapsed(object sender, ElapsedEventArgs e)
@@ -65,7 +65,7 @@ namespace LiveSplit.AHatInTime
         {
             try
             {
-                if (Phase == TimerPhase.Ended || Phase == TimerPhase.NotRunning)
+                if (state.CurrentPhase == TimerPhase.Ended || state.CurrentPhase == TimerPhase.NotRunning)
                     return;
 
                 if (line.StartsWith(" Log: ########### Finished loading level: "))
@@ -73,9 +73,9 @@ namespace LiveSplit.AHatInTime
                     var cutOff = line.Substring(" Log: ########### Finished loading level: ".Length);
                     var timeStr = cutOff.Substring(0, cutOff.IndexOf(" seconds"));
                     double seconds;
-                    if (Double.TryParse(timeStr, out seconds))
+                    if (Double.TryParse(timeStr, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds))
                     {
-                        RemovedLoadTime += TimeSpan.FromSeconds(seconds);
+                        state.LoadingTimes += TimeSpan.FromSeconds(seconds);
 #if DEBUG
                         System.Diagnostics.Debug.WriteLine(String.Format("Removed {0} seconds of load time", seconds));
 #endif
@@ -149,29 +149,22 @@ namespace LiveSplit.AHatInTime
                 return;
             }
 
-            LastLogIndex = 0;
             var path = Path.GetDirectoryName(LogPath);
             var watcher = new FileSystemWatcher(path) { EnableRaisingEvents = true };
             watcher.Changed += watcher_Changed;
             watcher.NotifyFilter |= NotifyFilters.LastAccess | NotifyFilters.LastWrite | NotifyFilters.Size;
             ParseNewLines(ReadAllLines());
-            RemovedLoadTime = TimeSpan.Zero;
             RefreshTimer.Enabled = true;
         }
 
         void OnReset()
         {
-            RemovedLoadTime = TimeSpan.Zero;
             RefreshTimer.Enabled = false;
-        }
-
-        void OnRunEnd()
-        {
         }
 
         void watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            if (Phase == TimerPhase.Ended || Phase == TimerPhase.NotRunning)
+            if (state.CurrentPhase == TimerPhase.Ended || state.CurrentPhase == TimerPhase.NotRunning)
             {
                 ((FileSystemWatcher)sender).Dispose();
                 return;
@@ -183,83 +176,28 @@ namespace LiveSplit.AHatInTime
             }
         }
 
-        private void PrepareDraw(LiveSplitState state)
-        {
-            var newPhase = state.CurrentPhase;
-            if (Phase != newPhase)
-            {
-                if (newPhase == TimerPhase.Running && Phase == TimerPhase.NotRunning)
-                {
-                    OnStart();
-                }
-                else if (newPhase == TimerPhase.NotRunning)
-                {
-                    OnReset();
-                }
-                else if (newPhase == TimerPhase.Ended)
-                {
-                    OnRunEnd();
-                }
-            }
-            Phase = newPhase;
-
-            InternalComponent.NameLabel.HasShadow 
-                = InternalComponent.ValueLabel.HasShadow
-                = state.LayoutSettings.DropShadows;
-
-            InternalComponent.NameLabel.Text = "Time Without Loads";
-            InternalComponent.NameLabel.ForeColor = state.LayoutSettings.TextColor;
-            InternalComponent.ValueLabel.ForeColor = state.LayoutSettings.TextColor;
-            InternalComponent.ValueLabel.Font = InternalComponent.NameLabel.Font;
-
-            InternalComponent.TimeValue = state.CurrentTime - RemovedLoadTime;
-        }
-
-        public void DrawVertical(Graphics g, LiveSplitState state, float width)
-        {
-            PrepareDraw(state);
-            InternalComponent.DrawVertical(g, state, width);
-        }
-
-        public void DrawHorizontal(Graphics g, LiveSplitState state, float height)
-        {
-            PrepareDraw(state);
-            InternalComponent.DrawHorizontal(g, state, height);
-        }
-
-        public float VerticalHeight
-        {
-            get { return InternalComponent.VerticalHeight; }
-        }
-
-        public float MinimumWidth
-        {
-            get { return 20; }
-        }
-
-        public float HorizontalWidth
-        {
-            get { return InternalComponent.HorizontalWidth; }
-        }
-
-        public float MinimumHeight
-        {
-            get { return InternalComponent.MinimumHeight; }
-        }
-
-        public System.Xml.XmlNode GetSettings(System.Xml.XmlDocument document)
+        public override System.Xml.XmlNode GetSettings(System.Xml.XmlDocument document)
         {
             return Settings.GetSettings(document);
         }
 
-        public System.Windows.Forms.Control GetSettingsControl(UI.LayoutMode mode)
+        public override System.Windows.Forms.Control GetSettingsControl(UI.LayoutMode mode)
         {
             return Settings;
         }
 
-        public void SetSettings(System.Xml.XmlNode settings)
+        public override void SetSettings(System.Xml.XmlNode settings)
         {
             Settings.SetSettings(settings);
+        }
+
+        public override void Update(UI.IInvalidator invalidator, LiveSplitState state, float width, float height, UI.LayoutMode mode)
+        {
+        }
+
+        public override void Dispose()
+        {
+            //TODO Probably dispose the filesystem watcher
         }
     }
 }

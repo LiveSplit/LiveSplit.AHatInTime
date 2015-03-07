@@ -1,4 +1,5 @@
-﻿using LiveSplit.UI.Components;
+﻿using LiveSplit.Model;
+using LiveSplit.UI.Components;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,9 +14,9 @@ namespace LiveSplit.AHatInTime
             get { return "A Hat In Time - Time Without Loads"; }
         }
 
-        public IComponent Create()
+        public IComponent Create(LiveSplitState state)
         {
-            return new AHatInTimeComponent();
+            return new AHatInTimeComponent(state);
         }
 
         public string UpdateName
@@ -36,6 +37,16 @@ namespace LiveSplit.AHatInTime
         public string XMLURL
         {
             get { return "http://livesplit.org/update/Components/noupdates.xml"; }
+        }
+
+        public ComponentCategory Category
+        {
+            get { return ComponentCategory.Control; }
+        }
+
+        public string Description
+        {
+            get { return "Removes loading times for A Hat in Time"; }
         }
     }
 }
