@@ -1,4 +1,5 @@
-﻿using LiveSplit.Model;
+﻿using LiveSplit.ASL;
+using LiveSplit.Model;
 using LiveSplit.Options;
 using LiveSplit.TimeFormatters;
 using LiveSplit.UI.Components;
@@ -23,8 +24,14 @@ namespace LiveSplit.AHatInTime
     {
         public AHatInTimeSettings Settings { get; set; }
 
-        protected LiveSplitState State { get; set; }
         protected Process Game { get; set; }
+
+        protected TimerModel Model { get; set; }
+        public ASLState OldState { get; set; }
+        public ASLState State { get; set; }
+
+        protected DeepPointer<byte> Hourglasses { get; set; }
+        protected DeepPointer<byte> GameTimer { get; set; }
 
         public override string ComponentName
         {
@@ -34,90 +41,9 @@ namespace LiveSplit.AHatInTime
         public AHatInTimeComponent(LiveSplitState state)
         {
             Settings = new AHatInTimeSettings();
-
-            this.State = state;
-            ContextMenuControls.Add("Start Game", StartGame);
-            ContextMenuControls.Add("Delete Save", DeleteSave);
+            State = new ASLState();
         }
-
-        private void DeleteSave()
-        {
-            if (String.IsNullOrEmpty(Settings.Path))
-            {
-                MessageBox.Show(State.Form, "Please set the path of the game in the settings.", "Game Path Not Set", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            var savePath = Path.Combine(
-                Path.GetDirectoryName(Settings.Path),
-                "..", "..", "HatinTimeGame",
-                "SaveData", "slot1beta.hat");
-            File.Delete(savePath);
-        }
-
-        public void StartGame()
-        {
-            if (String.IsNullOrEmpty(Settings.Path))
-            {
-                MessageBox.Show(State.Form, "Please set the path of the game in the settings.", "Game Path Not Set", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            var startInfo = new ProcessStartInfo(Settings.Path)
-            {
-                RedirectStandardOutput = true,
-                UseShellExecute = false
-            };
-            Game = new Process
-            {
-                StartInfo = startInfo
-            };
-            var started = Game.Start();
-            if (started)
-            {
-                Game.OutputDataReceived += Game_OutputDataReceived;
-                Game.BeginOutputReadLine();
-            }
-            else
-            {
-                MessageBox.Show(State.Form, "The game could not be started.", "Game Not Started", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-        }
-
-        void Game_OutputDataReceived(object sender, DataReceivedEventArgs e)
-        {
-            var line = e.Data;
-            ParseLine(line);
-        }
-
-        private void ParseLine(String line)
-        {
-            try
-            {
-                if (State.CurrentPhase == TimerPhase.Ended || State.CurrentPhase == TimerPhase.NotRunning)
-                    return;
-
-                if (line.StartsWith(" Log: ########### Finished loading level: "))
-                {
-                    var cutOff = line.Substring(" Log: ########### Finished loading level: ".Length);
-                    var timeStr = cutOff.Substring(0, cutOff.IndexOf(" seconds"));
-                    double seconds;
-                    if (Double.TryParse(timeStr, NumberStyles.Float, CultureInfo.InvariantCulture, out seconds))
-                    {
-                        State.LoadingTimes += TimeSpan.FromSeconds(seconds);
-#if DEBUG
-                        System.Diagnostics.Debug.WriteLine(String.Format("Removed {0} seconds of load time", seconds));
-#endif
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex);
-            }
-        }
-
+   
         public override System.Xml.XmlNode GetSettings(System.Xml.XmlDocument document)
         {
             return Settings.GetSettings(document);
@@ -133,13 +59,119 @@ namespace LiveSplit.AHatInTime
             Settings.SetSettings(settings);
         }
 
-        public override void Update(UI.IInvalidator invalidator, LiveSplitState state, float width, float height, UI.LayoutMode mode)
+        private void Rebuild()
         {
+            State.ValueDefinitions.Clear();
+
+            var gameVersion = GameVersion.BETA;
+
+            switch (gameVersion)
+            {
+                case GameVersion.BETA: RebuildBeta(); break;
+                default: Game = null; break;
+            }
+        }
+
+        private void RebuildBeta()
+        {
+            State.ValueDefinitions.Add(new ASLValueDefinition()
+            {
+                Identifier = "hourglasses",
+                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x022265F0, 0x4, 0x428, 0x670, 0x40, 0x48)
+            });
+            State.ValueDefinitions.Add(new ASLValueDefinition()
+            {
+                Identifier = "gameTime",
+                Pointer = new DeepPointer<float>(1, Game, "HatinTimeGame.exe", 0x002A4FF4, 0x0)
+            });
+        }
+
+        protected void TryConnect()
+        {
+            if (Game == null || Game.HasExited)
+            {
+                Game = Process.GetProcessesByName("HatinTimeGame").FirstOrDefault();
+                if (Game != null)
+                {
+                    Rebuild();
+                    State.RefreshValues();
+                    OldState = State;
+                }
+            }
+        }
+
+        public override void Update(UI.IInvalidator invalidator, LiveSplitState lsState, float width, float height, UI.LayoutMode mode)
+        {
+            if (Game != null && !Game.HasExited)
+            {
+                OldState = State.RefreshValues();
+
+                if (lsState.CurrentPhase == TimerPhase.NotRunning)
+                {
+                    if (Start(lsState, OldState.Data, State.Data))
+                    {
+                        Model.Start();
+                    }
+                }
+                else if (lsState.CurrentPhase == TimerPhase.Running || lsState.CurrentPhase == TimerPhase.Paused)
+                {
+                    if (Reset(lsState, OldState.Data, State.Data))
+                    {
+                        Model.Reset();
+                        return;
+                    }
+                    else if (Split(lsState, OldState.Data, State.Data))
+                    {
+                        Model.Split();
+                    }
+
+                    var isPaused = IsPaused(lsState, OldState.Data, State.Data);
+                    if (isPaused != null)
+                        lsState.IsGameTimePaused = isPaused;
+
+                    var gameTime = GameTime(lsState, OldState.Data, State.Data);
+                    if (gameTime != null)
+                        lsState.SetGameTime(gameTime);
+                }
+            }
+            else
+            {
+                if (Model == null)
+                {
+                    Model = new TimerModel() { CurrentState = lsState };
+                }
+                TryConnect();
+            }
         }
 
         public override void Dispose()
         {
             //TODO Probably dispose the filesystem watcher
+        }
+
+        public bool Start(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            return false;
+        }
+
+        public bool Split(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            return current.hourglasses > old.hourglasses;
+        }
+
+        public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            return false;
+        }
+
+        public bool IsPaused(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            return current.gameTime == old.gameTime;
+        }
+
+        public TimeSpan? GameTime(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            return null;
         }
     }
 }

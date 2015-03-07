@@ -24,19 +24,25 @@ namespace LiveSplit.AHatInTime
             get { return ComponentName; }
         }
 
+        public string XMLURL
+        {
+#if RELEASE_CANDIDATE
+#else
+            get { return "http://livesplit.org/update/Components/update.LiveSplit.AHatInTime.xml"; }
+#endif
+        }
+
         public string UpdateURL
         {
+#if RELEASE_CANDIDATE
+#else
             get { return "http://livesplit.org/update/"; }
+#endif
         }
 
         public Version Version
         {
-            get { return new Version(); }
-        }
-
-        public string XMLURL
-        {
-            get { return "http://livesplit.org/update/Components/noupdates.xml"; }
+            get { return Version.Parse("1.0.0"); }
         }
 
         public ComponentCategory Category

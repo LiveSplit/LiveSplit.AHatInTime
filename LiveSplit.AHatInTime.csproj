@@ -60,6 +60,10 @@
     <Compile Include="AHatInTimeSettings.Designer.cs">
       <DependentUpon>AHatInTimeSettings.cs</DependentUpon>
     </Compile>
+    <Compile Include="ASLState.cs" />
+    <Compile Include="ASLValueDefinition.cs" />
+    <Compile Include="DeepPtr.cs" />
+    <Compile Include="GameVersion.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
