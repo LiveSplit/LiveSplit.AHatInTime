@@ -52,7 +52,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Factory.cs" />
+    <Compile Include="AHatInTimeFactory.cs" />
     <Compile Include="AHatInTimeComponent.cs" />
     <Compile Include="AHatInTimeSettings.cs">
       <SubType>UserControl</SubType>

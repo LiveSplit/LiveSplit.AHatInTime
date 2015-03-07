@@ -28,7 +28,7 @@ namespace LiveSplit.AHatInTime
 
         public override string ComponentName
         {
-            get { return "A Hat In Time - Time Without Loads"; }
+            get { return "A Hat In Time Auto Splitter"; }
         }
 
         public AHatInTimeComponent(LiveSplitState state)
@@ -37,10 +37,32 @@ namespace LiveSplit.AHatInTime
 
             this.State = state;
             ContextMenuControls.Add("Start Game", StartGame);
+            ContextMenuControls.Add("Delete Save", DeleteSave);
+        }
+
+        private void DeleteSave()
+        {
+            if (String.IsNullOrEmpty(Settings.Path))
+            {
+                MessageBox.Show(State.Form, "Please set the path of the game in the settings.", "Game Path Not Set", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            var savePath = Path.Combine(
+                Path.GetDirectoryName(Settings.Path),
+                "..", "..", "HatinTimeGame",
+                "SaveData", "slot1beta.hat");
+            File.Delete(savePath);
         }
 
         public void StartGame()
         {
+            if (String.IsNullOrEmpty(Settings.Path))
+            {
+                MessageBox.Show(State.Form, "Please set the path of the game in the settings.", "Game Path Not Set", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
             var startInfo = new ProcessStartInfo(Settings.Path)
             {
                 RedirectStandardOutput = true,
@@ -58,7 +80,8 @@ namespace LiveSplit.AHatInTime
             }
             else
             {
-                //TODO Could not start
+                MessageBox.Show(State.Form, "The game could not be started.", "Game Not Started", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
             }
         }
 
