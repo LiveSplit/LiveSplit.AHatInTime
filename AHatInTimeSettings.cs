@@ -38,16 +38,16 @@ namespace LiveSplit.AHatInTime
         {
             var settingsNode = document.CreateElement("Settings");
 
-            var pathNode = document.CreateElement("Path");
+            /*var pathNode = document.CreateElement("Path");
             pathNode.InnerText = Path;
-            settingsNode.AppendChild(pathNode);
+            settingsNode.AppendChild(pathNode);*/
 
             return settingsNode;
         }
 
         public void SetSettings(System.Xml.XmlNode settings)
         {
-            Path = settings["Path"].InnerText;
+            //Path = settings["Path"].InnerText;
         }
     }
 }

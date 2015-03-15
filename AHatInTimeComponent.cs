@@ -51,7 +51,7 @@ namespace LiveSplit.AHatInTime
 
         public override System.Windows.Forms.Control GetSettingsControl(UI.LayoutMode mode)
         {
-            return Settings;
+            return null;
         }
 
         public override void SetSettings(System.Xml.XmlNode settings)
@@ -77,12 +77,17 @@ namespace LiveSplit.AHatInTime
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
                 Identifier = "hourglasses",
-                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x022265F0, 0x4, 0x428, 0x670, 0x40, 0x48)
+                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x022225F0, 0x4, 0x428, 0x670, 0x40, 0x48)
+            });
+            State.ValueDefinitions.Add(new ASLValueDefinition()
+            {
+                Identifier = "hourglasses2",
+                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x021D5344, 0xe0, 0x4cc, 0x3dc, 0x3c, 0x48)
             });
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
                 Identifier = "gameTime",
-                Pointer = new DeepPointer<float>(1, Game, "HatinTimeGame.exe", 0x002A4FF4, 0x0)
+                Pointer = new DeepPointer<float>(1, Game, "HatinTimeGame.exe", 0x220D604)
             });
         }
 
@@ -151,12 +156,13 @@ namespace LiveSplit.AHatInTime
 
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
         {
+            current.counter = 0;
             return false;
         }
 
         public bool Split(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.hourglasses > old.hourglasses;
+            return current.hourglasses > old.hourglasses || current.hourglasses2 > old.hourglasses2;
         }
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
@@ -166,7 +172,25 @@ namespace LiveSplit.AHatInTime
 
         public bool IsPaused(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.gameTime == old.gameTime;
+            if (current.gameTime == old.gameTime)
+            {
+                if (!timer.IsGameTimePaused)
+                    current.counter++;
+            }
+            else if (timer.IsGameTimePaused)
+                current.counter--;
+            else
+                current.counter = 0;
+
+            if (current.counter > 4)
+                current.counter = 4;
+            else if (current.counter < 0)
+                current.counter = 0;
+
+            if (timer.IsGameTimePaused)
+                return current.counter > 0;
+            else
+                return current.counter == 4;
         }
 
         public TimeSpan? GameTime(LiveSplitState timer, dynamic old, dynamic current)
