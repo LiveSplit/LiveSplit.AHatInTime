@@ -162,7 +162,7 @@ namespace LiveSplit.AHatInTime
 
         public bool Split(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.hourglasses > old.hourglasses || current.hourglasses2 > old.hourglasses2;
+            return current.hourglasses == (old.hourglasses + 1) || current.hourglasses2 == (old.hourglasses2 + 1);
         }
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
