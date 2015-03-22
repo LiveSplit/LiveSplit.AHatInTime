@@ -89,6 +89,12 @@ namespace LiveSplit.AHatInTime
                 Identifier = "gameTime",
                 Pointer = new DeepPointer<float>(1, Game, "HatinTimeGame.exe", 0x220D604)
             });
+            State.ValueDefinitions.Add(new ASLValueDefinition()
+            {
+                Identifier = "map",
+                Pointer = new DeepPointer<string>(32, Game, "HatinTimeGame.exe", 0x021F1950, 0x1d8)
+            });
+            ((dynamic)State.Data).pointerdelta = 0;
         }
 
         protected void TryConnect()
@@ -153,14 +159,7 @@ namespace LiveSplit.AHatInTime
             //TODO Probably dispose the filesystem watcher
         }
 
-        public bool Start(LiveSplitState timer, dynamic old, dynamic current)
-        {
-            current.counter = 0;
-            current.pointerdelta = 0;
-            return false;
-        }
-
-        public bool Split(LiveSplitState timer, dynamic old, dynamic current)
+        private void checkPointerPaths(dynamic old, dynamic current)
         {
             if (!State.ValueDefinitions.First(x => x.Identifier == "hourglasses").Pointer.IsNullPointer)
                 current.pointerdelta++;
@@ -171,6 +170,28 @@ namespace LiveSplit.AHatInTime
                 current.pointerdelta = -100;
             else if (current.pointerdelta > 100)
                 current.pointerdelta = 100;
+        }
+
+        public bool Start(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            checkPointerPaths(old, current);
+
+            var offset = TimeSpan.FromSeconds(1.3);
+            if (timer.Run.Offset != offset)
+                timer.Run.Offset = offset;
+
+            if (current.map == "hub_spaceship" && old.map == "hat_startup" && (current.pointerdelta >= 0 ? current.hourglasses : current.hourglasses2) == 0)
+            {
+                current.counter = 0;
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool Split(LiveSplitState timer, dynamic old, dynamic current)
+        {
+            checkPointerPaths(old, current);
 
             if (current.pointerdelta >= 0)
                 return current.hourglasses == (old.hourglasses + 1);
