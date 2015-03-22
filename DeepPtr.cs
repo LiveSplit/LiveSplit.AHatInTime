@@ -16,6 +16,7 @@ namespace LiveSplit
         private int _length;
         private string _module;
         private T oldValue;
+        public bool IsNullPointer { get; private set; }
 
         public DeepPointer(Process process, string module, int base_, params int[] offsets)
         {
@@ -26,6 +27,7 @@ namespace LiveSplit
             _offsets.Add(0); // deref base first
             _offsets.AddRange(offsets);
             oldValue = default(T);
+            IsNullPointer = true;
         }
 
         public DeepPointer(int length, Process process, int base_, params int[] offsets)
@@ -47,6 +49,7 @@ namespace LiveSplit
             _offsets = new List<int>();
             _offsets.Add(0); // deref base first
             _offsets.AddRange(offsets);
+            IsNullPointer = true;
         }
 
         public static T operator ~(DeepPointer<T> p)
@@ -60,8 +63,10 @@ namespace LiveSplit
             else if (p._length <= 1)
             {
                 T x = default(T);
+                p.IsNullPointer = false;
                 if (!p.Deref<T>(p._process, out x))
                 {
+                    p.IsNullPointer = true;
                     x = p.oldValue;
                 }
                 p.oldValue = x;

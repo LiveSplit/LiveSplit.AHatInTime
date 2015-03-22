@@ -131,8 +131,7 @@ namespace LiveSplit.AHatInTime
                     }
 
                     var isPaused = IsPaused(lsState, OldState.Data, State.Data);
-                    if (isPaused != null)
-                        lsState.IsGameTimePaused = isPaused;
+                    lsState.IsGameTimePaused = isPaused;
 
                     var gameTime = GameTime(lsState, OldState.Data, State.Data);
                     if (gameTime != null)
@@ -157,12 +156,26 @@ namespace LiveSplit.AHatInTime
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
         {
             current.counter = 0;
+            current.pointerdelta = 0;
             return false;
         }
 
         public bool Split(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.hourglasses == (old.hourglasses + 1) || current.hourglasses2 == (old.hourglasses2 + 1);
+            if (!State.ValueDefinitions.First(x => x.Identifier == "hourglasses").Pointer.IsNullPointer)
+                current.pointerdelta++;
+            if (!State.ValueDefinitions.First(x => x.Identifier == "hourglasses2").Pointer.IsNullPointer)
+                current.pointerdelta--;
+
+            if (current.pointerdelta < -100)
+                current.pointerdelta = -100;
+            else if (current.pointerdelta > 100)
+                current.pointerdelta = 100;
+
+            if (current.pointerdelta >= 0)
+                return current.hourglasses == (old.hourglasses + 1);
+            else
+                return current.hourglasses2 == (old.hourglasses2 + 1);
         }
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
