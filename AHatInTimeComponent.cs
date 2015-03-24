@@ -137,7 +137,8 @@ namespace LiveSplit.AHatInTime
                     }
 
                     var isPaused = IsPaused(lsState, OldState.Data, State.Data);
-                    lsState.IsGameTimePaused = isPaused;
+                    if (isPaused != null)
+                        lsState.IsGameTimePaused = isPaused;
 
                     var gameTime = GameTime(lsState, OldState.Data, State.Data);
                     if (gameTime != null)
@@ -159,28 +160,13 @@ namespace LiveSplit.AHatInTime
             //TODO Probably dispose the filesystem watcher
         }
 
-        private void checkPointerPaths(dynamic old, dynamic current)
-        {
-            if (!State.ValueDefinitions.First(x => x.Identifier == "hourglasses").Pointer.IsNullPointer)
-                current.pointerdelta++;
-            if (!State.ValueDefinitions.First(x => x.Identifier == "hourglasses2").Pointer.IsNullPointer)
-                current.pointerdelta--;
-
-            if (current.pointerdelta < -100)
-                current.pointerdelta = -100;
-            else if (current.pointerdelta > 100)
-                current.pointerdelta = 100;
-        }
-
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
         {
-            checkPointerPaths(old, current);
-
             var offset = TimeSpan.FromSeconds(1.2);
             if (timer.Run.Offset != offset)
                 timer.Run.Offset = offset;
 
-            if (current.map == "hub_spaceship" && old.map == "hat_startup" && (current.pointerdelta >= 0 ? current.hourglasses : current.hourglasses2) == 0)
+            if (current.map == "hub_spaceship" && old.map == "hat_startup" && (current.hourglasses == 0 || current.hourglasses2 == 0))
             {
                 current.counter = 0;
                 return true;
@@ -191,12 +177,7 @@ namespace LiveSplit.AHatInTime
 
         public bool Split(LiveSplitState timer, dynamic old, dynamic current)
         {
-            checkPointerPaths(old, current);
-
-            if (current.pointerdelta >= 0)
-                return current.hourglasses == (old.hourglasses + 1);
-            else
-                return current.hourglasses2 == (old.hourglasses2 + 1);
+            return current.hourglasses == (old.hourglasses + 1) || current.hourglasses2 == (old.hourglasses2 + 1);
         }
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
