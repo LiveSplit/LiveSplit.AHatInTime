@@ -92,7 +92,7 @@ namespace LiveSplit.AHatInTime
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
                 Identifier = "map",
-                Pointer = new DeepPointer<string>(32, Game, "HatinTimeGame.exe", 0x021F1950, 0x1d8)
+                Pointer = new DeepPointer<string>(32, Game, "HatinTimeGame.exe", 0x02208E38, 0x670, 0x0)
             });
             ((dynamic)State.Data).pointerdelta = 0;
         }
@@ -176,7 +176,7 @@ namespace LiveSplit.AHatInTime
         {
             checkPointerPaths(old, current);
 
-            var offset = TimeSpan.FromSeconds(1.3);
+            var offset = TimeSpan.FromSeconds(1.2);
             if (timer.Run.Offset != offset)
                 timer.Run.Offset = offset;
 
