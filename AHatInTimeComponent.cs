@@ -201,7 +201,7 @@ namespace LiveSplit.AHatInTime
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return false;
+            return current.map == "hat_startup";
         }
 
         public bool IsPaused(LiveSplitState timer, dynamic old, dynamic current)
