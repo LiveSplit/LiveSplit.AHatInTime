@@ -30,9 +30,6 @@ namespace LiveSplit.AHatInTime
         public ASLState OldState { get; set; }
         public ASLState State { get; set; }
 
-        protected DeepPointer<byte> Hourglasses { get; set; }
-        protected DeepPointer<byte> GameTimer { get; set; }
-
         public override string ComponentName
         {
             get { return "A Hat In Time Auto Splitter"; }
@@ -74,27 +71,13 @@ namespace LiveSplit.AHatInTime
 
         private void RebuildBeta()
         {
+            int baseAddress = 0x223E63C;
+
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
-                Identifier = "hourglasses",
-                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x022225F0, 0x4, 0x428, 0x670, 0x40, 0x48)
+                Identifier = "GameData",
+                Pointer = new DeepPointer<GameData>(1, Game, "HatinTimeGame.exe", baseAddress)
             });
-            State.ValueDefinitions.Add(new ASLValueDefinition()
-            {
-                Identifier = "hourglasses2",
-                Pointer = new DeepPointer<byte>(1, Game, "HatinTimeGame.exe", 0x021D5344, 0xe0, 0x4cc, 0x3dc, 0x3c, 0x48)
-            });
-            State.ValueDefinitions.Add(new ASLValueDefinition()
-            {
-                Identifier = "gameTime",
-                Pointer = new DeepPointer<float>(1, Game, "HatinTimeGame.exe", 0x220D604)
-            });
-            State.ValueDefinitions.Add(new ASLValueDefinition()
-            {
-                Identifier = "map",
-                Pointer = new DeepPointer<string>(32, Game, "HatinTimeGame.exe", 0x02208E38, 0x670, 0x0)
-            });
-            ((dynamic)State.Data).pointerdelta = 0;
         }
 
         protected void TryConnect()
@@ -162,55 +145,27 @@ namespace LiveSplit.AHatInTime
 
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
         {
-            var offset = TimeSpan.FromSeconds(1.2);
-            if (timer.Run.Offset != offset)
-                timer.Run.Offset = offset;
-
-            if (current.map == "hub_spaceship" && old.map == "hat_startup" && (current.hourglasses == 0 || current.hourglasses2 == 0))
-            {
-                current.counter = 0;
-                return true;
-            }
-
-            return false;
+            return current.GameData.State == GameState.Running && old.GameData.State == GameState.Inactive;
         }
 
         public bool Split(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.hourglasses == (old.hourglasses + 1) || current.hourglasses2 == (old.hourglasses2 + 1);
+            return current.GameData.TimePieceCount > old.GameData.TimePieceCount || current.GameData.State == GameState.Credits;
         }
 
         public bool Reset(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return current.map == "hat_startup";
+            return current.GameData.State == GameState.Inactive && old.GameData.State == GameState.Running;
         }
 
         public bool IsPaused(LiveSplitState timer, dynamic old, dynamic current)
         {
-            if (current.gameTime == old.gameTime)
-            {
-                if (!timer.IsGameTimePaused)
-                    current.counter++;
-            }
-            else if (timer.IsGameTimePaused)
-                current.counter--;
-            else
-                current.counter = 0;
-
-            if (current.counter > 4)
-                current.counter = 4;
-            else if (current.counter < 0)
-                current.counter = 0;
-
-            if (timer.IsGameTimePaused)
-                return current.counter > 0;
-            else
-                return current.counter == 4;
+            return current.GameData.IsPaused;
         }
 
         public TimeSpan? GameTime(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return null;
+            return TimeSpan.FromSeconds(current.GameData.CurrentGameSessionTime);
         }
     }
 }
