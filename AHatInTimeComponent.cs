@@ -145,6 +145,10 @@ namespace LiveSplit.AHatInTime
 
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
         {
+            var offset = TimeSpan.FromSeconds(0.0);
+            if (timer.Run.Offset != offset)
+                timer.Run.Offset = offset;
+
             return current.GameData.State == GameState.Running && old.GameData.State == GameState.Inactive;
         }
 
