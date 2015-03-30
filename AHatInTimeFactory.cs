@@ -42,7 +42,7 @@ namespace LiveSplit.AHatInTime
 
         public Version Version
         {
-            get { return Version.Parse("1.1.7"); }
+            get { return Version.Parse("1.2.0"); }
         }
 
         public ComponentCategory Category

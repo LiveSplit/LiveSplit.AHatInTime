@@ -71,7 +71,7 @@ namespace LiveSplit.AHatInTime
 
         private void RebuildBeta()
         {
-            int baseAddress = 0x223E63C;
+            int baseAddress = 0x022406C0;
 
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
@@ -120,8 +120,7 @@ namespace LiveSplit.AHatInTime
                     }
 
                     var isPaused = IsPaused(lsState, OldState.Data, State.Data);
-                    if (isPaused != null)
-                        lsState.IsGameTimePaused = isPaused;
+                    lsState.IsGameTimePaused = isPaused;
 
                     var gameTime = GameTime(lsState, OldState.Data, State.Data);
                     if (gameTime != null)
@@ -140,7 +139,6 @@ namespace LiveSplit.AHatInTime
 
         public override void Dispose()
         {
-            //TODO Probably dispose the filesystem watcher
         }
 
         public bool Start(LiveSplitState timer, dynamic old, dynamic current)
@@ -169,7 +167,10 @@ namespace LiveSplit.AHatInTime
 
         public TimeSpan? GameTime(LiveSplitState timer, dynamic old, dynamic current)
         {
-            return TimeSpan.FromSeconds(current.GameData.CurrentGameSessionTime);
+            if (current.GameData.CurrentGameSessionTime != old.GameData.CurrentGameSessionTime)
+                return TimeSpan.FromSeconds(current.GameData.CurrentGameSessionTime);
+            else
+                return null; 
         }
     }
 }
