@@ -71,7 +71,7 @@ namespace LiveSplit.AHatInTime
 
         private void RebuildBeta()
         {
-            int baseAddress = 0x022406C0;
+            int baseAddress = 0x22416E0;
 
             State.ValueDefinitions.Add(new ASLValueDefinition()
             {
